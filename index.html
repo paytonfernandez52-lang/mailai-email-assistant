@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAIA</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; height: 100vh; overflow: hidden; }
+  #chat-messages { overflow-y: auto; scroll-behavior: smooth; }
+  #chat-messages::-webkit-scrollbar { width: 4px; }
+  #chat-messages::-webkit-scrollbar-track { background: transparent; }
+  #chat-messages::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 2px; }
+  .typing-dot { animation: blink 1.2s infinite; }
+  .typing-dot:nth-child(2) { animation-delay: 0.4s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.8s; }
+  @keyframes blink { 0%, 60%, 100% { opacity: 0.2; } 30% { opacity: 1; } }
+</style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 flex flex-col h-screen">
+
+<!-- PIN Screen -->
+<div id="pin-screen" class="fixed inset-0 bg-zinc-950 flex flex-col items-center justify-center z-50 px-6">
+  <div class="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-6">
+    <span class="text-emerald-400 text-xl font-bold tracking-widest">M</span>
+  </div>
+  <h1 class="text-2xl font-bold tracking-[0.3em] text-zinc-100 mb-1">MAIA</h1>
+  <p class="text-zinc-600 text-sm mb-10">Personal AI Assistant</p>
+  <div class="w-full max-w-xs">
+    <input id="pin-input" type="password" placeholder="Enter your PIN"
+      class="w-full bg-zinc-900 border border-zinc-700 rounded-2xl px-4 py-3 text-center text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50 transition-colors tracking-widest text-lg mb-3">
+    <p id="pin-error" class="text-red-400 text-sm text-center mb-3 hidden">Wrong PIN. Try again.</p>
+    <button id="pin-submit"
+      class="w-full py-3 bg-emerald-500 hover:bg-emerald-600 font-semibold rounded-2xl transition text-sm">
+      Unlock
+    </button>
+  </div>
+</div>
+
+<!-- Chat Screen -->
+<div id="chat-screen" class="hidden flex flex-col h-screen">
+
+  <!-- Header -->
+  <div class="border-b border-zinc-800 px-6 py-4 flex items-center justify-between flex-shrink-0 bg-zinc-950/95 backdrop-blur">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+        <span class="text-emerald-400 text-sm font-bold tracking-widest">M</span>
+      </div>
+      <div>
+        <h1 class="font-bold tracking-[0.2em] text-zinc-100 text-sm">MAIA</h1>
+        <p class="text-xs text-zinc-600">Personal AI Assistant</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-1">
+        <span class="text-xs text-zinc-600 mr-1">Speed</span>
+        <button onclick="setSpeed(0.75)" id="spd075" class="speed-btn text-xs px-2 py-0.5 rounded-lg border border-zinc-700 text-zinc-500 hover:text-white hover:border-zinc-500 transition-all">0.75×</button>
+        <button onclick="setSpeed(1)" id="spd1" class="speed-btn text-xs px-2 py-0.5 rounded-lg border border-emerald-500/50 text-emerald-400 transition-all">1×</button>
+        <button onclick="setSpeed(1.25)" id="spd125" class="speed-btn text-xs px-2 py-0.5 rounded-lg border border-zinc-700 text-zinc-500 hover:text-white hover:border-zinc-500 transition-all">1.25×</button>
+        <button onclick="setSpeed(1.5)" id="spd15" class="speed-btn text-xs px-2 py-0.5 rounded-lg border border-zinc-700 text-zinc-500 hover:text-white hover:border-zinc-500 transition-all">1.5×</button>
+        <button onclick="setSpeed(2)" id="spd2" class="speed-btn text-xs px-2 py-0.5 rounded-lg border border-zinc-700 text-zinc-500 hover:text-white hover:border-zinc-500 transition-all">2×</button>
+      </div>
+      <div id="status-dot" class="w-2 h-2 rounded-full bg-emerald-400"></div>
+      <span id="status-text" class="text-xs text-zinc-500">Online</span>
+    </div>
+  </div>
+
+  <!-- Chat Messages -->
+  <div id="chat-messages" class="flex-1 px-4 py-6 space-y-5">
+    <div class="flex gap-3">
+      <div class="w-7 h-7 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center flex-shrink-0 mt-1">
+        <span class="text-emerald-400 text-xs font-bold">M</span>
+      </div>
+      <div class="bg-zinc-900 border border-zinc-800 rounded-2xl rounded-tl-sm px-4 py-3 max-w-lg">
+        <p class="text-zinc-300 text-sm">Online. What do you need?</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input Area -->
+  <div class="border-t border-zinc-800 px-4 py-4 flex-shrink-0 bg-zinc-950">
+    <div class="flex items-center gap-3">
+      <button id="mic-btn" title="Voice input"
+        class="relative w-10 h-10 rounded-full border border-zinc-700 flex items-center justify-center text-zinc-400 hover:text-emerald-400 hover:border-emerald-500/40 transition-all flex-shrink-0">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M3.5 6.5A.5.5 0 0 1 4 7v1a4 4 0 0 0 8 0V7a.5.5 0 0 1 1 0v1a5 5 0 0 1-4.5 4.975V15h3a.5.5 0 0 1 0 1h-7a.5.5 0 0 1 0-1h3v-2.025A5 5 0 0 1 3 8V7a.5.5 0 0 1 .5-.5"/>
+          <path d="M10 8a2 2 0 1 1-4 0V3a2 2 0 1 1 4 0z"/>
+        </svg>
+      </button>
+      <input id="user-input" type="text" placeholder="Message MAIA..."
+        class="flex-1 bg-zinc-900 border border-zinc-700 rounded-2xl px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50 transition-colors">
+      <button id="send-btn"
+        class="w-10 h-10 rounded-full bg-emerald-500 hover:bg-emerald-600 flex items-center justify-center transition-colors flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="white" viewBox="0 0 16 16">
+          <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576zm6.787-8.201L1.591 6.602l4.339 2.76z"/>
+        </svg>
+      </button>
+    </div>
+    <p id="voice-status" class="text-xs text-red-400 text-center mt-2 hidden">Listening...</p>
+  </div>
+
+</div>
+
+<script>
+  const SYSTEM_PROMPT = `You are MAIA (My Adaptive Intelligence Assistant), Payton Fernandez's personal AI assistant, built into Jarvis-OS — a personal assistant system Payton built himself.
+
+Core rules:
+- Witty, sharp, and proactive. JARVIS from Iron Man is the vibe — confident, helpful, never boring.
+- Never open with "Certainly!", "Great question!", "Of course!", "Absolutely!", or any sycophantic filler. Just answer.
+- Treat Payton as a peer and collaborator. No hand-holding unless asked.
+- Be concise. One sharp answer beats three hedged paragraphs.
+- When you don't know something, say so directly — no padding.
+
+What you know about Payton:
+- Web developer running Payton Web Solutions. Builds modern sites for small business clients.
+- Works at Quality Muffler (4.5 years as sales provider — bridge between customers and techs, parts ordering, bilingual service).
+- Bilingual: English and Spanish. Conversational Portuguese.
+- Just finished an A.S. in Computer Programming & Information Systems at College of the Sequoias (2026).
+- Currently learning Python. Uses AI-assisted development (Claude, Copilot).
+- You two are building Jarvis-OS together — this interface is part of it.`;
+
+  // ── STATE ───────────────────────────────────────────────
+  const history = [];
+  let isRecording = false;
+  let recognition = null;
+  let pin = sessionStorage.getItem('maia_pin');
+  let memoriesContext = '';
+  let messagesSinceExtract = 0;
+  const audioEl = new Audio();
+  let audioUnlocked = false;
+
+  function unlockAudio() {
+    if (audioUnlocked) return;
+    audioEl.play().catch(() => {});
+    audioUnlocked = true;
+  }
+
+  document.addEventListener('click', unlockAudio, { once: true });
+
+  // ── PIN LOGIC ───────────────────────────────────────────
+  const pinScreen = document.getElementById('pin-screen');
+  const chatScreen = document.getElementById('chat-screen');
+  const pinInput = document.getElementById('pin-input');
+  const pinSubmit = document.getElementById('pin-submit');
+  const pinError = document.getElementById('pin-error');
+
+  async function loadMemories() {
+    try {
+      const res = await fetch('/.netlify/functions/memory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${pin}` },
+        body: JSON.stringify({ mode: 'load' })
+      });
+      const data = await res.json();
+      if (data.memories && data.memories.length > 0) {
+        memoriesContext = '\n\nThings you remember about Payton from past conversations:\n' + data.memories.map(m => `- ${m}`).join('\n');
+      }
+    } catch { /* fail silently */ }
+  }
+
+  async function extractMemories() {
+    if (history.length < 2) return;
+    try {
+      const recent = history.slice(-6);
+      const res = await fetch('/.netlify/functions/memory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${pin}` },
+        body: JSON.stringify({ mode: 'extract', messages: recent })
+      });
+      const data = await res.json();
+      console.log('[MAIA Memory]', res.status, data);
+      if (data.saved > 0) showToast(`Memory updated (${data.saved} new)`);
+    } catch (err) { console.error('[MAIA Memory Error]', err); }
+  }
+
+  function showToast(msg) {
+    const t = document.createElement('div');
+    t.textContent = msg;
+    t.className = 'fixed bottom-20 left-1/2 -translate-x-1/2 bg-emerald-800 text-emerald-100 text-xs px-3 py-1.5 rounded-full z-50 opacity-0 transition-opacity duration-300';
+    document.body.appendChild(t);
+    requestAnimationFrame(() => t.style.opacity = '1');
+    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3000);
+  }
+
+  function showChat() {
+    pinScreen.classList.add('hidden');
+    chatScreen.classList.remove('hidden');
+    chatScreen.style.display = 'flex';
+    chatScreen.style.flexDirection = 'column';
+    inputEl?.focus();
+    loadMemories();
+  }
+
+  async function tryPin(entered) {
+    pinSubmit.disabled = true;
+    pinSubmit.textContent = 'Checking...';
+    pinError.classList.add('hidden');
+
+    const res = await fetch('/.netlify/functions/claude', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${entered}`
+      },
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: 'ping' }],
+        system: 'Reply with only the word: pong'
+      })
+    });
+
+    pinSubmit.disabled = false;
+    pinSubmit.textContent = 'Unlock';
+
+    if (res.status === 401) {
+      pinError.classList.remove('hidden');
+      pinInput.value = '';
+      pinInput.focus();
+      return;
+    }
+
+    sessionStorage.setItem('maia_pin', entered);
+    pin = entered;
+    showChat();
+  }
+
+  pinSubmit.addEventListener('click', () => {
+    const entered = pinInput.value.trim();
+    if (entered) tryPin(entered);
+  });
+
+  pinInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const entered = pinInput.value.trim();
+      if (entered) tryPin(entered);
+    }
+  });
+
+  // ── ELEMENTS ────────────────────────────────────────────
+  const chatEl = document.getElementById('chat-messages');
+  const inputEl = document.getElementById('user-input');
+  const sendBtn = document.getElementById('send-btn');
+  const micBtn = document.getElementById('mic-btn');
+  const voiceStatus = document.getElementById('voice-status');
+  const statusDot = document.getElementById('status-dot');
+  const statusText = document.getElementById('status-text');
+
+  if (pin) {
+    showChat();
+  } else {
+    pinInput.focus();
+  }
+
+  // ── HELPERS ─────────────────────────────────────────────
+  function escape(text) {
+    return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+  }
+
+  function addMessage(role, text) {
+    const el = document.createElement('div');
+    if (role === 'user') {
+      el.className = 'flex justify-end';
+      el.innerHTML = `
+        <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl rounded-tr-sm px-4 py-3 max-w-lg">
+          <p class="text-zinc-200 text-sm">${escape(text)}</p>
+        </div>`;
+    } else {
+      el.className = 'flex gap-3';
+      el.innerHTML = `
+        <div class="w-7 h-7 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center flex-shrink-0 mt-1">
+          <span class="text-emerald-400 text-xs font-bold">M</span>
+        </div>
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl rounded-tl-sm px-4 py-3 max-w-lg">
+          <p class="text-zinc-300 text-sm">${escape(text)}</p>
+        </div>`;
+    }
+    chatEl.appendChild(el);
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+
+  function showTyping() {
+    const el = document.createElement('div');
+    el.id = 'typing';
+    el.className = 'flex gap-3';
+    el.innerHTML = `
+      <div class="w-7 h-7 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center flex-shrink-0 mt-1">
+        <span class="text-emerald-400 text-xs font-bold">M</span>
+      </div>
+      <div class="bg-zinc-900 border border-zinc-800 rounded-2xl rounded-tl-sm px-4 py-3">
+        <div class="flex gap-1 items-center h-4">
+          <div class="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-500"></div>
+          <div class="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-500"></div>
+          <div class="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-500"></div>
+        </div>
+      </div>`;
+    chatEl.appendChild(el);
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+
+  function hideTyping() {
+    document.getElementById('typing')?.remove();
+  }
+
+  function setStatus(state) {
+    if (state === 'thinking') {
+      statusDot.className = 'w-2 h-2 rounded-full bg-yellow-400';
+      statusText.textContent = 'Thinking...';
+    } else {
+      statusDot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+      statusText.textContent = 'Online';
+    }
+  }
+
+  let currentSpeed = parseFloat(localStorage.getItem('maia_speed') || '1');
+  audioEl.playbackRate = currentSpeed;
+
+  function setSpeed(rate) {
+    currentSpeed = rate;
+    audioEl.playbackRate = rate;
+    localStorage.setItem('maia_speed', rate);
+    document.querySelectorAll('.speed-btn').forEach(btn => {
+      btn.classList.remove('border-emerald-500/50', 'text-emerald-400');
+      btn.classList.add('border-zinc-700', 'text-zinc-500');
+    });
+    const active = document.getElementById('spd' + String(rate).replace('.', ''));
+    if (active) {
+      active.classList.remove('border-zinc-700', 'text-zinc-500');
+      active.classList.add('border-emerald-500/50', 'text-emerald-400');
+    }
+  }
+  setSpeed(currentSpeed);
+
+  async function speak(text) {
+    try {
+      const res = await fetch('/.netlify/functions/elevenlabs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${pin}`
+        },
+        body: JSON.stringify({ text })
+      });
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      if (audioEl.src) URL.revokeObjectURL(audioEl.src);
+      audioEl.src = url;
+      await audioEl.play();
+    } catch (e) {
+      console.warn('TTS error:', e);
+    }
+  }
+
+  // ── LIVE DATA CONTEXT ───────────────────────────────────
+  function getDateTime() {
+    return new Date().toLocaleString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long',
+      day: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+  }
+
+  async function fetchWeather() {
+    try {
+      const res = await fetch('https://wttr.in/Visalia,CA?format=j1');
+      const d = await res.json();
+      const today = d.weather[0];
+      const tomorrow = d.weather[1];
+      const cur = d.current_condition[0];
+      return `Current weather in Visalia CA: ${cur.weatherDesc[0].value}, ${cur.temp_F}°F, feels like ${cur.FeelsLikeF}°F, humidity ${cur.humidity}%. Today: high ${today.maxtempF}°F, low ${today.mintempF}°F. Tomorrow: ${tomorrow.hourly[4].weatherDesc[0].value}, high ${tomorrow.maxtempF}°F, low ${tomorrow.mintempF}°F, rain chance ${tomorrow.hourly[4].chanceofrain}%.`;
+    } catch { return null; }
+  }
+
+  async function fetchJoke() {
+    try {
+      const res = await fetch('https://v2.jokeapi.dev/joke/Any?blacklistFlags=nsfw,racist,sexist,explicit&type=single');
+      const d = await res.json();
+      return `Here is a joke you can tell: "${d.joke}"`;
+    } catch { return null; }
+  }
+
+  async function fetchDefinition(word) {
+    try {
+      const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+      const d = await res.json();
+      if (!Array.isArray(d)) return null;
+      const def = d[0].meanings[0].definitions[0].definition;
+      const partOfSpeech = d[0].meanings[0].partOfSpeech;
+      return `Definition of "${word}" (${partOfSpeech}): ${def}`;
+    } catch { return null; }
+  }
+
+  async function fetchFact() {
+    try {
+      const res = await fetch('https://uselessfacts.jsph.pl/api/v2/facts/random?language=en');
+      const d = await res.json();
+      return `Random fact: ${d.text}`;
+    } catch { return null; }
+  }
+
+  async function fetchExchangeRate(from, to) {
+    try {
+      const res = await fetch(`https://api.frankfurter.app/latest?from=${from.toUpperCase()}&to=${to.toUpperCase()}`);
+      const d = await res.json();
+      const rate = d.rates[to.toUpperCase()];
+      return rate ? `Exchange rate: 1 ${from.toUpperCase()} = ${rate} ${to.toUpperCase()} (live).` : null;
+    } catch { return null; }
+  }
+
+  async function fetchAdvice() {
+    try {
+      const res = await fetch('https://api.adviceslip.com/advice');
+      const d = await res.json();
+      return `Advice: "${d.slip.advice}"`;
+    } catch { return null; }
+  }
+
+  async function fetchSunriseSunset() {
+    try {
+      const res = await fetch('https://api.sunrisesunset.io/json?lat=36.3302&lng=-119.2921&timezone=America/Los_Angeles');
+      const d = await res.json();
+      return `Sunrise in Visalia today: ${d.results.sunrise}. Sunset: ${d.results.sunset}.`;
+    } catch { return null; }
+  }
+
+  async function fetchTrivia() {
+    try {
+      const res = await fetch('https://opentdb.com/api.php?amount=1&type=multiple');
+      const d = await res.json();
+      const q = d.results[0];
+      const answers = [...q.incorrect_answers, q.correct_answer].sort(() => Math.random() - 0.5);
+      return `Trivia (${q.category}): ${q.question.replace(/&quot;/g,'"').replace(/&#039;/g,"'")} — Options: ${answers.join(', ')}. Correct answer: ${q.correct_answer}.`;
+    } catch { return null; }
+  }
+
+  async function buildContext(text) {
+    const lower = text.toLowerCase();
+    const parts = [`Current date/time: ${getDateTime()}.`];
+
+    if (/weather|forecast|temperature|rain|hot|cold|sunny|cloudy|wind/.test(lower)) {
+      const w = await fetchWeather();
+      if (w) parts.push(w);
+    }
+    if (/joke|funny|make me laugh|tell me a joke/.test(lower)) {
+      const j = await fetchJoke();
+      if (j) parts.push(j);
+    }
+    if (/what does .+ mean|define |definition of|meaning of/.test(lower)) {
+      const match = lower.match(/(?:what does|define|definition of|meaning of)\s+["']?(\w+)["']?/);
+      if (match) {
+        const d = await fetchDefinition(match[1]);
+        if (d) parts.push(d);
+      }
+    }
+    if (/random fact|fun fact|did you know/.test(lower)) {
+      const f = await fetchFact();
+      if (f) parts.push(f);
+    }
+    if (/advice|what should i do|help me decide/.test(lower)) {
+      const a = await fetchAdvice();
+      if (a) parts.push(a);
+    }
+    if (/sunrise|sunset|sun rise|sun set/.test(lower)) {
+      const s = await fetchSunriseSunset();
+      if (s) parts.push(s);
+    }
+    if (/trivia|quiz|trivia question/.test(lower)) {
+      const t = await fetchTrivia();
+      if (t) parts.push(t);
+    }
+    if (/exchange rate|convert .+ to|how much is .+ in|dollar|euro|peso|yen|pound/.test(lower)) {
+      const match = lower.match(/(\beur\b|\busd\b|\bmxn\b|\bgbp\b|\bjpy\b|\bcad\b|\baud\b)/g);
+      if (match && match.length >= 2) {
+        const r = await fetchExchangeRate(match[0], match[1]);
+        if (r) parts.push(r);
+      } else {
+        const r = await fetchExchangeRate('USD', 'EUR');
+        if (r) parts.push(r);
+      }
+    }
+
+    return parts.length > 1 ? '\n\n[Live context for this message]\n' + parts.join(' ') : '\n\n[Current date/time: ' + getDateTime() + ']';
+  }
+
+  // ── IMAGE GENERATION (Pollinations.ai) ──────────────────
+  function extractImagePrompt(text) {
+    return text
+      .replace(/^(generate|create|make|draw|show me|give me|produce|design)\s+(an?\s+)?(image|picture|photo|drawing|illustration|art|artwork)\s+(of\s+)?/i, '')
+      .replace(/^(image|picture|photo|drawing)\s+of\s+/i, '')
+      .trim();
+  }
+
+  function addImageMessage(prompt, url) {
+    const el = document.createElement('div');
+    el.className = 'flex gap-3';
+    el.innerHTML = `
+      <div class="w-7 h-7 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center flex-shrink-0 mt-1">
+        <span class="text-emerald-400 text-xs font-bold">M</span>
+      </div>
+      <div class="bg-zinc-900 border border-zinc-800 rounded-2xl rounded-tl-sm px-4 py-3 max-w-lg">
+        <p class="text-zinc-400 text-xs mb-2">Generating: <em>${prompt}</em></p>
+        <img src="${url}" alt="${prompt}" class="rounded-xl max-w-full" onload="this.previousElementSibling.textContent=''" onerror="this.previousElementSibling.textContent='Image generation failed.'" />
+      </div>`;
+    chatEl.appendChild(el);
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+
+  // ── SEND ────────────────────────────────────────────────
+  async function send(text) {
+    text = text.trim();
+    if (!text) return;
+
+    inputEl.value = '';
+    sendBtn.disabled = true;
+    setStatus('thinking');
+
+    addMessage('user', text);
+
+    // Image generation shortcut
+    if (/\b(generate|create|make|draw|show me|give me|produce|design)\b.{0,30}\b(image|picture|photo|drawing|illustration|art|artwork)\b/i.test(text) ||
+        /\b(image|picture|photo|drawing)\s+of\b/i.test(text)) {
+      const prompt = extractImagePrompt(text);
+      const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=512&nologo=true&seed=${Date.now()}`;
+      addImageMessage(prompt, url);
+      sendBtn.disabled = false;
+      setStatus('online');
+      return;
+    }
+
+    const context = await buildContext(text);
+    history.push({ role: 'user', content: text });
+    showTyping();
+
+    try {
+      const res = await fetch('/.netlify/functions/claude', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${pin}`
+        },
+        body: JSON.stringify({ messages: history, system: SYSTEM_PROMPT + memoriesContext + context })
+      });
+
+      if (res.status === 401) {
+        sessionStorage.removeItem('maia_pin');
+        location.reload();
+        return;
+      }
+
+      const data = await res.json();
+      const reply = data.content[0].text;
+      history.push({ role: 'assistant', content: reply });
+      hideTyping();
+      addMessage('assistant', reply);
+      speak(reply);
+      extractMemories().then(loadMemories);
+
+    } catch (err) {
+      hideTyping();
+      addMessage('assistant', 'Lost connection. Try again.');
+    }
+
+    setStatus('online');
+    sendBtn.disabled = false;
+    inputEl.focus();
+  }
+
+  sendBtn.addEventListener('click', () => send(inputEl.value));
+  inputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      send(inputEl.value);
+    }
+  });
+
+  // ── VOICE INPUT (MediaRecorder + Whisper) ───────────────
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let recordingTimeout = null;
+
+  function getMimeType() {
+    const types = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'];
+    for (const t of types) {
+      if (MediaRecorder.isTypeSupported(t)) return t;
+    }
+    return '';
+  }
+
+  function setMicActive(active) {
+    isRecording = active;
+    if (active) {
+      micBtn.classList.add('border-red-500', 'text-red-400', 'bg-red-500/10');
+      micBtn.classList.remove('border-zinc-700', 'text-zinc-400');
+      voiceStatus.textContent = 'Recording... tap to send';
+      voiceStatus.classList.remove('hidden');
+    } else {
+      micBtn.classList.remove('border-red-500', 'text-red-400', 'bg-red-500/10');
+      micBtn.classList.add('border-zinc-700', 'text-zinc-400');
+      voiceStatus.classList.add('hidden');
+    }
+  }
+
+  async function processAudio(blob) {
+    voiceStatus.textContent = 'Processing...';
+    voiceStatus.classList.remove('hidden');
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(blob);
+      reader.onloadend = async () => {
+        const base64 = reader.result.split(',')[1];
+        const res = await fetch('/.netlify/functions/whisper', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${pin}`
+          },
+          body: JSON.stringify({ audio: base64, mimeType: blob.type })
+        });
+        const data = await res.json();
+        voiceStatus.classList.add('hidden');
+        if (data.text && data.text.trim()) send(data.text.trim());
+      };
+    } catch (e) {
+      console.warn('Whisper error:', e);
+      voiceStatus.classList.add('hidden');
+    }
+  }
+
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    micBtn.addEventListener('click', async () => {
+      if (isRecording && mediaRecorder) {
+        clearTimeout(recordingTimeout);
+        mediaRecorder.stop();
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mimeType = getMimeType();
+        mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) audioChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = () => {
+          stream.getTracks().forEach(t => t.stop());
+          setMicActive(false);
+          const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+          processAudio(blob);
+        };
+
+        mediaRecorder.start();
+        setMicActive(true);
+        recordingTimeout = setTimeout(() => {
+          if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+        }, 30000);
+
+      } catch (e) {
+        console.warn('Mic access error:', e);
+        voiceStatus.textContent = 'Mic access denied';
+        voiceStatus.classList.remove('hidden');
+        setTimeout(() => voiceStatus.classList.add('hidden'), 3000);
+      }
+    });
+  } else {
+    micBtn.title = 'Voice input not supported in this browser';
+    micBtn.classList.add('opacity-30', 'cursor-not-allowed');
+    micBtn.disabled = true;
+  }
+</script>
+
+</body>
+</html>
